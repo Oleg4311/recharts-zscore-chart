@@ -8,9 +8,11 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   DotProps,
 } from 'recharts'
+import styles from './styles/ZScoreLineChart.module.css'
 
 type DataPoint = {
   name: string
@@ -43,14 +45,13 @@ function addZScore(data: DataPoint[], key: 'pv' | 'uv'): DataPoint[] {
   const values = data.map((d) => d[key])
   const m = mean(values)
   const sd = stdDev(values)
-
   return data.map((d) => ({
     ...d,
     [`${key}Z`]: (d[key] - m) / sd,
   }))
 }
 
-const processedData: DataPoint[] = addZScore(addZScore(rawData, 'pv'), 'uv')
+const processedData = addZScore(addZScore(rawData, 'pv'), 'uv')
 
 interface DotPropsWithPayload extends DotProps {
   payload: DataPoint
@@ -59,61 +60,64 @@ interface DotPropsWithPayload extends DotProps {
 const renderCustomDot = (zKey: 'pvZ' | 'uvZ', color: string) => (props: DotPropsWithPayload) => {
   const { cx, cy, payload } = props
   const z = payload[zKey]
-  const key = `dot-${zKey}-${cx}-${cy}`
 
   if (cx == null || cy == null) {
-    return <circle key={key} cx={0} cy={0} r={0} fill="transparent" />
+    return <circle cx={0} cy={0} r={0} fill="transparent" style={{ display: 'none' }} />
   }
 
   const isOutlier = Math.abs(z ?? 0) > 1
 
   return (
     <circle
-      key={key}
       cx={cx}
       cy={cy}
-      r={isOutlier ? 6 : 4}
-      stroke={isOutlier ? 'red' : undefined}
-      strokeWidth={isOutlier ? 2 : 0}
+      r={isOutlier ? 8 : 3}
       fill={isOutlier ? 'white' : color}
+      stroke={isOutlier ? 'red' : 'none'}
+      strokeWidth={isOutlier ? 2 : 0}
     />
   )
 }
 
 export default function ZScoreLineChart() {
   return (
-    <div style={{ width: '100%', height: 400 }}>
-      <h2 className="text-xl font-bold mb-2">Z-Score Highlighted Line Chart</h2>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={processedData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
-          <YAxis />
-          <Tooltip
-            formatter={(value: any, name: string, props: any) => {
-              const zKey = `${name}Z`
-              const z = props.payload?.[zKey]
-              return [`${value} (z: ${z?.toFixed(2)})`, name]
-            }}
-          />
-          <Line
-            type="monotone"
-            dataKey="pv"
-            stroke="#8884d8"
-            strokeWidth={2}
-            dot={renderCustomDot('pvZ', '#8884d8')}
-            isAnimationActive={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="uv"
-            stroke="#82ca9d"
-            strokeWidth={2}
-            dot={renderCustomDot('uvZ', '#82ca9d')}
-            isAnimationActive={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+    <div className={styles.chartWrapper}>
+      <div className={styles.chartContainer}>
+        <h2 className={styles.chartHeading}>SimpleLineChart</h2>
+        <div className={styles.chartResponsive}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={processedData}
+              margin={{ top: 5, right: 30, left: 20, bottom: 40 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip
+                formatter={(value: any, name: string, props: any) => {
+                  const zKey = `${name}Z`
+                  const z = props.payload?.[zKey]
+                  return [`${value} (z: ${z?.toFixed(2)})`, name]
+                }}
+              />
+              <Legend verticalAlign="bottom" height={36} />
+              <Line
+                type="monotone"
+                dataKey="pv"
+                stroke="#8884d8"
+                activeDot={{ r: 8 }}
+                dot={renderCustomDot('pvZ', '#8884d8')}
+              />
+              <Line
+                type="monotone"
+                dataKey="uv"
+                stroke="#82ca9d"
+                dot={renderCustomDot('uvZ', '#82ca9d')}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   )
 }
